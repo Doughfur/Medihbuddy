@@ -1,4 +1,5 @@
   body{
+    position: relative;
     background-color: #e0edff;
     background-image: url(Background_image/background.png);
     margin: 0px;
@@ -38,7 +39,7 @@
     gap: 10px;
     width: 100%;
     padding: 20px 0;
-    box-sizing: border:white-box;
+    box-sizing: border
     }
   .container{
     background-color: #edeef0;
@@ -52,7 +53,7 @@
     cursor: pointer;
     box-shadow: 0px 8px 16px 0 light-blue;
     margin-left: 10px;
-    margin-right 10px;
+    margin-right: 10px;
     display: flex;
     box-shadow: 7px 6px #43474c, 14px 12px #b3becc;
     }
@@ -71,6 +72,12 @@
     padding: 20px 0;
     box-sizing: border-box;
     }
+  .button-container-management {
+    transform: scale(2);
+    justify-content: left;
+    margin-left: 130px;
+    margin-top: 200px;
+  }
   .button-container a {
     display: flex;
     flex-direction: column;
@@ -83,6 +90,24 @@
     cursor: pointer;
     transform: scale(1.1);
   }
+  .naviButton {
+    background-color: #2e6bb5;
+    color: white;
+    border-radius: 10px;
+    border: none;
+    
+    width: 80px;     
+    height: 20px;   
+    
+    font-size: 12px;  
+    font-weight: bold;
+    
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 5px;
+    cursor: pointer;
+  }
   .dot {
     height: 25px;
     width: 25px;
@@ -90,7 +115,45 @@
     border-radius: 50%;
     display: inline-block;
     margin-top: 20px; margin-left: 20px; transition: background-color 0.3s ease;
-    }:
+    }
+    .medibud{
+      align-items: center;
+    }
 
-</style>
+    .controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 
+    background: rgba(255,255,255,0.8);
+    padding: 12px;
+    border-radius: 10px;
+    margin: auto;
+    margin-top: 200px;
+    justify-content: center;
+    transform: scale(2.5);
+    margin-right: 200px;
+  }
+
+  .interval-container {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+  }
+
+  .interval-box {
+      width: 50px;
+  }
+
+  .controls input {
+      padding: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+  }
+
+
+.controls .naviButton {
+    width: 90px;
+    height: 35px;
+    font-size: 14px;
+}
