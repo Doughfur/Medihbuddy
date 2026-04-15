@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediBuddy — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #f0f7ff;
+    --surface:   #ffffff;
+    --accent:    #2e6bb5;
+    --accent-lt: #9ad1ff;
+    --accent-dk: #1a4a84;
+    --text:      #12243d;
+    --text-sec:  #3b5a82;
+    --muted:     #7a9bbf;
+    --border:    #c8e0f8;
+    --danger:    #d94f4f;
+    --font:      'Sora', sans-serif;
+    --mono:      'DM Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(ellipse at 15% 20%, rgba(154,209,255,0.35) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 80%, rgba(46,107,181,0.12) 0%, transparent 55%);
+  }
+
+  /* ── Decorative rings (same as hero) ── */
+  body::before {
+    content: '';
+    position: fixed;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    border: 1px solid rgba(154,209,255,0.3);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: pulse-ring 4s ease-in-out infinite;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    width: 900px; height: 900px;
+    border-radius: 50%;
+    border: 1px solid rgba(154,209,255,0.15);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: pulse-ring 4s ease-in-out infinite 0.8s;
+  }
+  @keyframes pulse-ring {
+    0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+    50%       { opacity: 0.8; transform: translate(-50%, -50%) scale(1.03); }
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--accent);
+    height: 58px;
+    padding: 0 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 16px rgba(46,107,181,0.28);
+    flex-shrink: 0;
+  }
+  .logo-img {
+    height: 90px;
+    width: auto;
+    display: block;
+  }
+  .nav-link {
+    font-size: 0.78rem;
+    font-family: var(--mono);
+    color: rgba(255,255,255,0.72);
+    text-decoration: none;
+    letter-spacing: 0.06em;
+    transition: color 0.2s;
+  }
+  .nav-link:hover { color: #fff; }
+
+  /* ── Main content area ── */
+  main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Login card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 8px 40px rgba(46,107,181,0.10);
+    animation: fade-up 0.5s cubic-bezier(.16,1,.3,1) both;
+    position: relative;
+  }
+  /* Top accent line matching the accent colour */
+  .card::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: 40px; right: 40px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    border-radius: 3px;
+  }
+
+  /* ── Logo block ── */
+  .logo-block {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .logo-icon {
+    width: 52px; height: 52px;
+    border-radius: 14px;
+    background: rgba(46,107,181,0.08);
+    border: 1px solid rgba(46,107,181,0.18);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 16px;
+  }
+  .logo-name {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+  .logo-name em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .logo-sub {
+    font-size: 0.75rem;
+    font-family: var(--mono);
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  
+  .login-card-logo {
+    transform: scale(1.5);
+  }
+/* Specific styling for the logo image inside the card */
+.login-card-logo {
+  max-width: 200px; /* Adjust this width to fit your logo's aspect ratio */
+  height: auto;
+  display: block;
+  margin: 0 auto 12px auto; /* Centers the image and adds space below */
+  filter: drop-shadow(0 4px 8px rgba(46, 107, 181, 0.1)); /* Optional: adds a soft lift */
+}
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 28px 0;
+  }
+
+  /* ── Form fields ── */
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-size: 0.65rem;
+    font-family: var(--mono);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  .field input::placeholder { color: var(--muted); }
+  .field input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(46,107,181,0.10);
+  }
+  .field input.error { border-color: var(--danger); }
+eal-time Sync
+Live Firebase connection keeps every box status up to date across all d
+  .error-msg {
+    font-size: 4px;
+    font-family: var(--mono);
+    color: var(--danger);
+    margin-top: 6px;
+    display: none;
+  }
+  .error-msg.show { display: block; }
+
+  /* ── Sign in button ── */
+  .btn-login {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 13px;
+    font-family: var(--font);
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+    letter-spacing: 0.02em;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-login:hover {
+    background: var(--accent-dk);
+    box-shadow: 0 4px 16px rgba(46,107,181,0.25);
+  }
+  .btn-login:active { transform: scale(0.98); }
+  .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Shimmer on hover */
+  .btn-login::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%);
+    transform: translateX(-100%);
+    transition: transform 0.4s;
+  }
+  .btn-login:hover::after { transform: translateX(100%); }
+
+  .spinner {
+    display: none;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin: 0 auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .footer-note {
+    text-align: center;
+    font-size: 0.65rem;
+    font-family: var(--mono);
+    color: var(--muted);
+    margin-top: 24px;
+    line-height: 1.7;
+  }
+
+  /* ── Footer ── */
+  footer {
+    background: var(--accent);
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .footer-brand {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.3px;
+  }
+  .footer-copy {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.06em;
+  }
+
+  /* ── Animations ── */
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%     { transform: translateX(-8px); }
+    40%     { transform: translateX(8px); }
+    60%     { transform: translateX(-6px); }
+    80%     { transform: translateX(6px); }
+  }
+  .shake { animation: shake 0.4s ease; }
+
+  @media (max-width: 480px) {
+    .card { padding: 36px 24px; }
+    body::before { width: 340px; height: 340px; }
+    body::after  { width: 520px; height: 520px; }
+  }
+
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <img src="Images/medibuddy_logo.png" alt="MediBuddy Logo" class="logo-img">
+  </div>
+  <a href="index.html" class="nav-link">← Back to Home</a>
+</header>
+
+<main>
+  <div class="card" id="card">
+    <div class="logo-block">
+      <img src="Images/medibuddy_logo-cropped.png" alt="MediBuddy Logo" class="login-card-logo">
+      <div class="logo-sub">Nurse Portal</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label>Email Address</label>
+      <input type="email" id="email" placeholder="nurse@hospital.com" autocomplete="email">
+      <div class="error-msg" id="email-err" style="font-size:8px; color:red">Please enter a valid email address.</div>
+    </div>
+
+    <div class="field">
+      <label>Access Password</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+      <div class="error-msg" id="pass-err" style="font-size:8px; color:red">Incorrect password. Please try again.</div>
+    </div>
+
+    <button class="btn-login" id="loginBtn" onclick="handleLogin()">
+      <span id="btn-text">Sign In</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+
+    <div class="footer-note">
+      MediBuddy Patient Medication System<br>
+      Authorized personnel only
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-brand">MediBuddy</div>
+  <div class="footer-copy">Smart Medication Management</div>
+</footer>
+
+<script>
+  const DASHBOARD_PASSWORD = "medibuddy2025";
+
+  const emailInput = document.getElementById("email");
+  const passInput  = document.getElementById("password");
+  const loginBtn   = document.getElementById("loginBtn");
+  const btnText    = document.getElementById("btn-text");
+  const spinner    = document.getElementById("spinner");
+  const emailErr   = document.getElementById("email-err");
+  const passErr    = document.getElementById("pass-err");
+  const card       = document.getElementById("card");
+
+  document.addEventListener("keydown", e => { if (e.key === "Enter") handleLogin(); });
+
+  function setLoading(on) {
+    loginBtn.disabled     = on;
+    btnText.style.display = on ? "none"  : "block";
+    spinner.style.display = on ? "block" : "none";
+  }
+
+  function clearErrors() {
+    emailInput.classList.remove("error"); passInput.classList.remove("error");
+    emailErr.classList.remove("show");    passErr.classList.remove("show");
+  }
+
+  function shakeCard() {
+    card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake");
+  }
+
+  function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+
+  function handleLogin() {
+    clearErrors();
+    const email    = emailInput.value.trim();
+    const password = passInput.value;
+    let valid = true;
+
+    if (!isValidEmail(email)) {
+      emailInput.classList.add("error"); emailErr.classList.add("show"); valid = false;
+    }
+    if (!password) {
+      passInput.classList.add("error");
+      passErr.textContent = "Please enter a password.";
+      passErr.classList.add("show"); valid = false;
+    }
+    if (!valid) { shakeCard(); return; }
+
+    setLoading(true);
+
+    setTimeout(() => {
+      if (password !== DASHBOARD_PASSWORD) {
+        setLoading(false);
+        passInput.classList.add("error");
+        passErr.textContent = "Incorrect password. Please try again.";
+        passErr.classList.add("show");
+        passInput.value = ""; passInput.focus();
+        shakeCard(); return;
+      }
+      sessionStorage.setItem("nurseEmail", email);
+      sessionStorage.setItem("authenticated", "true");
+      card.style.transition = "opacity .3s, transform .3s";
+      card.style.opacity    = "0";
+      card.style.transform  = "scale(.97)";
+      setTimeout(() => { window.location.href = "dashboard.html"; }, 300);
+    }, 600);
+  }
+</script>
+</body>
+</html>
