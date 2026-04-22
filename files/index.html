@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediBuddy — Smart Medication Management</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:        #f0f7ff;
+    --surface:   #ffffff;
+    --accent:    #2e6bb5;
+    --accent-lt: #9ad1ff;
+    --accent-dk: #1a4a84;
+    --text:      #12243d;
+    --text-sec:  #3b5a82;
+    --muted:     #7a9bbf;
+    --border:    #c8e0f8;
+    --font:      'Sora', sans-serif;
+    --mono:      'DM Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─────────────────────────────────────────
+     HEADER / NAV
+  ───────────────────────────────────────── */
+  header {
+    background: var(--accent);
+    height: 58px;
+    padding: 0 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 16px rgba(46,107,181,0.28);
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+  }
+  .logo-img {
+    height: 90px;      /* adjust to fit your PNG */
+    width: auto;
+    display: block;
+  }
+ 
+  .nav-link {
+    font-size: 0.78rem;
+    font-family: var(--mono);
+    color: rgba(255,255,255,0.72);
+    text-decoration: none;
+    letter-spacing: 0.06em;
+    transition: color 0.2s;
+  }
+  .nav-link:hover { color: #fff; }
+
+  /* ─────────────────────────────────────────
+     HERO SECTION
+  ───────────────────────────────────────── */
+  .hero {
+    min-height: calc(100vh - 58px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 24px 80px;
+    position: relative;
+    background-image:
+      radial-gradient(ellipse at 15% 20%, rgba(154,209,255,0.35) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 80%, rgba(46,107,181,0.12) 0%, transparent 55%);
+  }
+
+  /* Decorative background rings */
+  .hero::before {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    border: 1px solid rgba(154,209,255,0.3);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: pulse-ring 4s ease-in-out infinite;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    width: 900px; height: 900px;
+    border-radius: 50%;
+    border: 1px solid rgba(154,209,255,0.15);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: pulse-ring 4s ease-in-out infinite 0.8s;
+  }
+
+  @keyframes pulse-ring {
+    0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+    50%       { opacity: 0.8; transform: translate(-50%, -50%) scale(1.03); }
+  }
+
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(46,107,181,0.08);
+    border: 1px solid rgba(46,107,181,0.2);
+    padding: 5px 14px;
+    border-radius: 20px;
+    margin-bottom: 28px;
+    display: inline-block;
+    animation: fade-up 0.6s ease both;
+  }
+
+  .hero-title {
+    font-size: clamp(2.4rem, 6vw, 4rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    color: var(--text);
+    margin-bottom: 20px;
+    max-width: 720px;
+    animation: fade-up 0.6s ease 0.1s both;
+  }
+  .hero-title em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .hero-sub {
+    font-size: 1rem;
+    font-weight: 300;
+    color: var(--text-sec);
+    max-width: 480px;
+    line-height: 1.7;
+    margin-bottom: 48px;
+    animation: fade-up 0.6s ease 0.2s both;
+  }
+
+  /* =============================================
+     DASHBOARD BUTTON — PNG PLACEHOLDER (TOP)
+     ─────────────────────────────────────────────
+     Replace the <img> src below with your PNG.
+     The <a> tag links to dashboard.html.
+     Recommended image size: ~260 × 260 px
+  ============================================= */
+  .dashboard-link {
+    display: inline-block;
+    text-decoration: none;
+    position: relative;
+    z-index: 1;
+    animation: fade-up 0.6s ease 0.3s both;
+    transition: transform 0.2s, filter 0.2s;
+  }
+  .dashboard-link:hover {
+    transform: translateY(-4px) scale(1.03);
+    filter: drop-shadow(0 12px 28px rgba(46,107,181,0.30));
+  }
+
+  /* ── REPLACE src WITH YOUR PNG ── */
+  .dashboard-link img {
+    width: 1000px;          /* adjust as needed */
+    height: auto;
+    display: block;
+  }
+
+  .cta-label {
+    margin-top: 14px;
+    font-size: 0.72rem;
+    font-family: var(--mono);
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    animation: fade-up 0.6s ease 0.4s both;
+  }
+
+  /* ─────────────────────────────────────────
+     FEATURES STRIP
+  ───────────────────────────────────────── */
+  .features {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 56px 24px;
+  }
+  .features-inner {
+    max-width: 860px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 32px;
+  }
+  .feature-item {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .feature-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: rgba(154,209,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+  }
+  .feature-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .feature-desc {
+    font-size: 0.8rem;
+    color: var(--text-sec);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+  
+  /* ─────────────────────────────────────────
+     FOOTER
+  ───────────────────────────────────────── */
+  footer {
+    background: var(--accent);
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .footer-logo {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.3px;
+  }
+  .footer-note {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.06em;
+  }
+
+  /* ─────────────────────────────────────────
+     ANIMATIONS
+  ───────────────────────────────────────── */
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─────────────────────────────────────────
+     MOBILE
+  ───────────────────────────────────────── */
+  @media (max-width: 520px) {
+    .hero-title { letter-spacing: -0.8px; }
+    .hero::before { width: 340px; height: 340px; }
+    .hero::after  { width: 520px; height: 520px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     HEADER
+═══════════════════════════════════════ -->
+<header>
+  <div class="logo">
+    <img src="Images/medibuddy_logo.png" alt="MediBuddy Logo" class="logo-img">
+  </div>
+
+  <a href="login.html" class="nav-link">Login →</a>
+</header>
+
+
+<!-- ═══════════════════════════════════════
+     HERO
+═══════════════════════════════════════ -->
+<section class="hero">
+
+  <div class="hero-eyebrow">Smart Medication Management</div>
+
+  <h1 class="hero-title">
+    Never miss a dose<br>
+    <em>with MediBuddy.</em>
+  </h1>
+
+  <p class="hero-sub">
+    The MediBuddy is a medicine box designed to remind users 
+    to take their medication or vitamins on time, with an integrated 
+    application for remote management.
+  </p>
+
+  <a href="login.html" class="dashboard-link" title="Go to Dashboard">
+    <img src="Images/medibuddy_model.png" alt="Open Dashboard">
+  </a>
+
+  <div class="cta-label">Tap to open Portal</div>
+
+</section>
+
+
+<!-- ═══════════════════════════════════════
+     FEATURES STRIP
+═══════════════════════════════════════ -->
+<section class="features">
+  <div class="features-inner">
+    <div class="feature-item">
+      <div class="feature-icon">📡</div>
+      <div class="feature-title">Real-time Sync</div>
+      <div class="feature-desc">Live Firebase connection keeps every box status up to date across all devices.</div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">⏰</div>
+      <div class="feature-title">Scheduled Alarms</div>
+      <div class="feature-desc">Set custom alarms per box — frequency, interval, and first-dose time.</div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">📋</div>
+      <div class="feature-title">Activity Log</div>
+      <div class="feature-desc">A full timestamped log of every confirmed dose and missed event.</div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">📶</div>
+      <div class="feature-title">Device Status</div>
+      <div class="feature-desc">Monitor Wi-Fi signal, device clock, and online heartbeat at a glance.</div>
+    </div>
+  </div>
+</section>
+
+
+<footer>
+  <div class="footer-logo">MediBuddy</div>
+  <div class="footer-note">Smart Medication Management</div>
+</footer>
+
+</body>
+</html>
