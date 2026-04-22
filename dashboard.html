@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediBuddy Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  // Initialize EmailJS
+  emailjs.init("aYFx1-8Wormmxhp_6");
+</script>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set, push, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ── Auth gate — redirect to login if not authenticated ───────
+  if (!sessionStorage.getItem("authenticated")) {
+    window.location.href = "login.html";
+  }
+  const NURSE_EMAIL_FROM_LOGIN = sessionStorage.getItem("nurseEmail") || "nurse@example.com";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyANYFFHg2K8s9FkyCHH4XxwdhjMrOkjjD0",
+    authDomain: "medibuddy-27ca8.firebaseapp.com",
+    databaseURL: "https://medibuddy-27ca8-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "medibuddy-27ca8",
+    storageBucket: "medibuddy-27ca8.firebasestorage.app",
+    messagingSenderId: "445097100535",
+    appId: "1:445097100535:web:1ee96fd60778c3ef773ff2"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  const BOX_NAMES = ["Box A","Box B","Box C","Box D","Box E","Box F","Box G"];
+
+  // ── Live boxes listener ──────────────────────────────────────
+  onValue(ref(db, "boxes"), snap => {
+    const data = snap.val() || {};
+    BOX_NAMES.forEach((name, i) => renderBox(i, name, data[i] || {}));
+  });
+
+  // ── EmailJS missed dose alert ─────────────────────────────────
+  const NURSE_EMAIL   = NURSE_EMAIL_FROM_LOGIN; // set at login
+  const EMAILJS_SVC   = "service_76n12rk";
+  const EMAILJS_TMPL  = "template_5472q3m";
+
+  // Tracks log keys we've already alerted on so we don't double-send
+  const alertedKeys = new Set();
+
+  function secsToTimeString(secs) {
+    if (!secs && secs !== 0) return "unknown";
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const ampm = h < 12 ? "am" : "pm";
+    const h12  = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${String(m).padStart(2,"0")} ${ampm}`;
+  }
+
+  async function sendMissedAlert(boxName, alarmTime) {
+    try {
+      await emailjs.send(EMAILJS_SVC, EMAILJS_TMPL, {
+        to_email:   NURSE_EMAIL,
+        box_name:   boxName,
+        alarm_time: alarmTime,
+      });
+      console.log(`Missed dose alert sent for ${boxName} at ${alarmTime}`);
+    } catch (err) {
+      console.error("EmailJS error:", err);
+    }
+  }
+
+  // ── Live log listener ────────────────────────────────────────
+  onValue(ref(db, "log"), snap => {
+    const data = snap.val() || {};
+    const entries = Object.entries(data).sort((a,b) => b[1].timestamp - a[1].timestamp);
+
+    // Check for new missed doses and send alert
+    entries.forEach(([key, entry]) => {
+      if (!entry.taken && !alertedKeys.has(key)) {
+        alertedKeys.add(key);
+        // Find the start time for this box from current box data
+        const boxIndex = ["Box A","Box B","Box C","Box D","Box E","Box F","Box G"].indexOf(entry.box);
+        let alarmTimeStr = "Unknown";
+        // Try to get time from boxes node
+        import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(({ get }) => {
+          if (boxIndex >= 0) {
+            get(ref(db, `boxes/${boxIndex}/startSecs`)).then(snap => {
+              if (snap.exists()) alarmTimeStr = secsToTimeString(snap.val());
+              sendMissedAlert(entry.box, alarmTimeStr);
+            });
+          } else {
+            sendMissedAlert(entry.box, alarmTimeStr);
+          }
+        });
+      }
+    });
+
+    renderLog(entries.map(e => e[1]).slice(0, 30));
+  });
+
+  // ── Live device status ───────────────────────────────────────
+  onValue(ref(db, "device"), snap => {
+    const d = snap.val() || {};
+    document.getElementById("status-time").textContent  = d.time  || "--:--";
+    document.getElementById("status-date").textContent  = d.date  || "---";
+    document.getElementById("status-wifi").textContent  = d.rssi  ? `${d.rssi} dBm` : "---";
+    const dot = document.getElementById("status-dot");
+    const alive = d.heartbeat && (Date.now()/1000 - d.heartbeat) < 120;
+    dot.className = "dot " + (alive ? "online" : "offline");
+    document.getElementById("status-label").textContent = alive ? "Online" : "Offline";
+  });
+
+  // ── Save box to Firebase ─────────────────────────────────────
+  window.saveBox = async function(i) {
+    const freq     = parseInt(document.getElementById(`freq-${i}`).value)     || 0;
+    const interval = parseInt(document.getElementById(`interval-${i}`).value) || 0;
+    const dose     = parseInt(document.getElementById(`dose-${i}`).value)     || 1;
+    const med      = document.getElementById(`med-${i}`)?.value               || "";
+    const startRaw = document.getElementById(`start-${i}`).value; // "HH:MM"
+    let startSecs  = 0;
+    if (startRaw) {
+      const [h, m] = startRaw.split(":").map(Number);
+      startSecs = h * 3600 + m * 60;
+    }
+
+    // Include savedAt so ESP32 knows this data is fresh
+    const savedAt = Math.floor(Date.now() / 1000);
+    const payload = { freq, interval, dose, startSecs, name: BOX_NAMES[i], med, savedAt };
+
+    console.log(`Saving Box ${i}:`, payload);
+
+    try {
+      await set(ref(db, `boxes/${i}`), payload);
+      showToast(`${BOX_NAMES[i]} saved ✓`);
+      console.log(`Box ${i} saved to Firebase successfully`);
+    } catch (err) {
+      showToast(`Save FAILED: ${err.message}`);
+      console.error(`Box ${i} save error:`, err);
+    }
+  };
+
+  // ── Turn off box ─────────────────────────────────────────────
+  window.turnOffBox = async function(i) {
+    await set(ref(db, `boxes/${i}/freq`), 0);
+    showToast(`${BOX_NAMES[i]} turned off`);
+  };
+
+  // ── Sync time to device ──────────────────────────────────────
+  window.syncTime = async function() {
+    const now = new Date();
+    await set(ref(db, "commands/setTime"), {
+      hour:   now.getHours(),
+      minute: now.getMinutes(),
+      second: now.getSeconds(),
+      day:    now.getDate(),
+      month:  now.getMonth() + 1,
+      year:   now.getFullYear(),
+      ts:     Math.floor(Date.now() / 1000)  // seconds, not ms — ESP32 uses seconds
+    });
+    showToast("Time sync sent to device ✓");
+  };
+
+  // ── Render a box card ────────────────────────────────────────
+  function secsToTime(s) {
+    if (!s && s !== 0) return "";
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+  }
+
+  function renderBox(i, name, d) {
+    const card = document.getElementById(`box-${i}`);
+    if (!card) return;
+    card.querySelector(".freq-val").value     = d.freq     ?? 0;
+    card.querySelector(".interval-val").value = d.interval ?? 0;
+    card.querySelector(".dose-val").value     = d.dose     ?? 1;
+    card.querySelector(".start-val").value    = secsToTime(d.startSecs);
+    const medEl = card.querySelector(".med-val");
+    if (medEl) medEl.value = d.med || "";
+
+    const statusEl = card.querySelector(".box-status");
+    if (d.freq && d.freq > 0) {
+      statusEl.textContent  = `${d.freq}x/day`;
+      statusEl.className    = "box-status active";
+    } else {
+      statusEl.textContent  = "OFF";
+      statusEl.className    = "box-status off";
+    }
+
+    // Last confirmation
+    const lastEl = card.querySelector(".last-taken");
+    if (d.lastTaken) {
+      const t = new Date(d.lastTaken * 1000);
+      lastEl.textContent = "Last taken: " + t.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+      lastEl.className   = "last-taken confirmed";
+    } else if (d.lastMissed) {
+      const t = new Date(d.lastMissed * 1000);
+      lastEl.textContent = "⚠ Missed: " + t.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+      lastEl.className   = "last-taken missed";
+    } else {
+      lastEl.textContent = "No data yet";
+      lastEl.className   = "last-taken";
+    }
+  }
+
+  // ── Render activity log ───────────────────────────────────────
+  function renderLog(entries) {
+    const el = document.getElementById("log-list");
+    if (!entries.length) { el.innerHTML = `<div class="log-empty">No activity yet</div>`; return; }
+    el.innerHTML = entries.map(e => {
+      const t   = e.timestamp ? new Date(e.timestamp * 1000).toLocaleString() : "---";
+      const cls = e.taken ? "log-ok" : "log-miss";
+      const ico = e.taken ? "✅" : "⚠️";
+      return `<div class="log-entry ${cls}">
+        <span class="log-icon">${ico}</span>
+        <span class="log-box">${e.box || "---"}</span>
+        <span class="log-msg">${e.taken ? "Confirmed" : "MISSED"}</span>
+        <span class="log-time">${t}</span>
+      </div>`;
+    }).join("");
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────
+  window.logout = function() {
+    sessionStorage.clear();
+    window.location.href = "login.html";
+  };
+
+  window.showToast = function(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2500);
+  };
+</script>
+
+<style>
+  :root {
+    --bg:        #f0f7ff;
+    --surface:   #ffffff;
+    --card:      #ffffff;
+    --border:    #c8e0f8;
+    --border-md: #9ad1ff;
+    --accent:    #2e6bb5;
+    --accent-lt: #9ad1ff;
+    --accent-dk: #1a4a84;
+    --danger:    #d94f4f;
+    --warn:      #e08c00;
+    --success:   #1d8a5e;
+    --text:      #12243d;
+    --text-sec:  #3b5a82;
+    --muted:     #7a9bbf;
+    --font:      'Sora', sans-serif;
+    --mono:      'DM Mono', monospace;
+    --shadow-sm: 0 1px 4px rgba(46,107,181,0.08);
+    --shadow-md: 0 4px 16px rgba(46,107,181,0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    padding-bottom: 80px;
+    background-image:
+      radial-gradient(circle at 10% 0%, rgba(154,209,255,0.25) 0%, transparent 50%),
+      radial-gradient(circle at 90% 100%, rgba(46,107,181,0.08) 0%, transparent 50%);
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--accent);
+    padding: 0 24px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(46,107,181,0.30);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+  }
+  .logo-img {
+    height: 90px;      /* adjust to fit your PNG */
+    width: auto;
+    display: block;
+  }
+  .logo-fallback {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .logo-pill {
+    background: var(--accent-lt);
+    color: var(--accent-dk);
+    font-size: 0.58rem;
+    font-family: var(--mono);
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .header-label {
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.65);
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+  }
+
+  /* ── Device status bar ── */
+  .status-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-family: var(--mono);
+    font-size: 0.73rem;
+    color: var(--muted);
+    flex-wrap: wrap;
+    box-shadow: var(--shadow-sm);
+  }
+  .status-item { display: flex; align-items: center; gap: 6px; }
+  .status-item strong { color: var(--text-sec); font-weight: 500; }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot.online  { background: #1d8a5e; box-shadow: 0 0 0 3px rgba(29,138,94,0.18); }
+  .dot.offline { background: var(--danger); box-shadow: 0 0 0 3px rgba(217,79,79,0.18); }
+
+  /* ── Main layout ── */
+  main { padding: 24px 20px; max-width: 940px; margin: 0 auto; }
+
+  /* ── Section headings ── */
+  .section-title {
+    font-size: 0.62rem;
+    font-family: var(--mono);
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    margin-top: 32px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Sync time button ── */
+  .sync-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 4px;
+  }
+  .btn-sync {
+    background: var(--surface);
+    color: var(--accent);
+    border: 1.5px solid var(--accent-lt);
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-family: var(--font);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-sync:hover {
+    background: var(--accent-lt);
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* ── Box grid ── */
+  .box-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(265px, 1fr));
+    gap: 14px;
+  }
+
+  .box-card {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+    box-shadow: var(--shadow-sm);
+  }
+  .box-card:hover {
+    border-color: var(--accent-lt);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  .box-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .box-name {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .box-icon {
+    width: 28px; height: 28px;
+    background: var(--accent-lt);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+  }
+  .box-status {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+  .box-status.active {
+    background: rgba(29,138,94,0.1);
+    color: var(--success);
+    border: 1px solid rgba(29,138,94,0.2);
+  }
+  .box-status.off {
+    background: rgba(122,155,191,0.12);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  /* ── Divider ── */
+  .card-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 12px 0;
+  }
+
+  /* ── Form fields ── */
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .field label {
+    font-size: 0.6rem;
+    font-family: var(--mono);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .field input {
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    padding: 7px 10px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .field input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(46,107,181,0.12);
+  }
+
+  .last-taken {
+    font-size: 0.7rem;
+    font-family: var(--mono);
+    color: var(--muted);
+    margin-bottom: 10px;
+    min-height: 16px;
+  }
+  .last-taken.confirmed { color: var(--success); }
+  .last-taken.missed    { color: var(--danger); }
+
+  /* ── Card buttons ── */
+  .card-btns {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .btn-save {
+    flex: 1;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px;
+    font-family: var(--font);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(46,107,181,0.25);
+  }
+  .btn-save:hover {
+    background: var(--accent-dk);
+    box-shadow: 0 4px 12px rgba(46,107,181,0.35);
+  }
+  .btn-off {
+    background: transparent;
+    color: var(--danger);
+    border: 1.5px solid rgba(217,79,79,0.35);
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-family: var(--font);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .btn-off:hover {
+    background: rgba(217,79,79,0.08);
+    border-color: var(--danger);
+  }
+
+  /* ── Activity log ── */
+  .log-card {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .log-header-row {
+    padding: 13px 18px;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .log-header-title {
+    font-size: 0.72rem;
+    font-family: var(--mono);
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .log-header-badge {
+    font-size: 0.62rem;
+    font-family: var(--mono);
+    background: var(--accent-lt);
+    color: var(--accent-dk);
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .log-entry {
+    display: grid;
+    grid-template-columns: 28px 70px 90px 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.78rem;
+    transition: background 0.15s;
+  }
+  .log-entry:hover { background: #f5f9ff; }
+  .log-entry:last-child { border-bottom: none; }
+  .log-ok   { border-left: 3px solid var(--success); }
+  .log-miss { border-left: 3px solid var(--danger); }
+  .log-icon { font-size: 1rem; }
+  .log-box  { font-weight: 600; font-family: var(--mono); color: var(--text); }
+  .log-msg  { color: var(--muted); font-family: var(--mono); font-size: 0.72rem; }
+  .log-time { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); text-align: right; }
+  .log-empty { padding: 28px; text-align: center; color: var(--muted); font-size: 0.85rem; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.82rem;
+    padding: 11px 24px;
+    border-radius: 30px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 999;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(46,107,181,0.35);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Mobile tweaks ── */
+  @media (max-width: 480px) {
+    header { padding: 0 16px; }
+    main { padding: 16px; }
+    .log-entry { grid-template-columns: 24px 55px 1fr; }
+    .log-msg   { display: none; }
+    .status-bar { padding: 8px 16px; gap: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+
+  <div class="logo">
+    <a href="index (1).html">
+    <img src="Images/medibuddy_logo.png" alt="MediBuddy Logo" class="logo-img">
+    </a>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="header-label" id="nurse-label">Nurse Dashboard</div>
+    <button onclick="logout()" style="background:transparent;border:1px solid var(--border);color:var(--muted);
+      font-family:var(--mono);font-size:0.65rem;padding:4px 10px;border-radius:6px;cursor:pointer;">Sign Out</button>
+  </div>
+</header>
+
+<div class="status-bar">
+  <div class="status-item">
+    <div class="dot offline" id="status-dot"></div>
+    <span id="status-label">Connecting...</span>
+  </div>
+  <div class="status-item">🕐 <strong><span id="status-time">--:--</span></strong></div>
+  <div class="status-item">📅 <strong><span id="status-date">---</span></strong></div>
+  <div class="status-item">📶 <strong><span id="status-wifi">---</span></strong></div>
+</div>
+
+<main>
+
+  <div class="sync-row">
+    <button class="btn-sync" onclick="syncTime()">⏱ Sync Time from Browser</button>
+  </div>
+
+  <div class="section-title">Medication Boxes</div>
+
+  <div class="box-grid" id="box-grid">
+    <!-- Cards injected by JS below -->
+  </div>
+
+  <div class="section-title">Activity Log</div>
+  <div class="log-card">
+    <div class="log-header-row">
+      <span class="log-header-title">Recent Activity</span>
+      <span class="log-header-badge">Last 30 events</span>
+    </div>
+    <div id="log-list"><div class="log-empty">Loading...</div></div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+  // Show nurse email — runs after DOM is ready
+  const nurseLabel = document.getElementById("nurse-label");
+  if (nurseLabel) {
+    nurseLabel.textContent = "Signed in: " + (sessionStorage.getItem("nurseEmail") || "Nurse");
+  }
+
+  const BOX_ICONS = ["⚪","🔵","🟢","🟡","🔴","🟠","🟣"];
+  const BOX_NAMES = ["Box A","Box B","Box C","Box D","Box E","Box F","Box G"];
+  const grid = document.getElementById("box-grid");
+  BOX_NAMES.forEach((name, i) => {
+    grid.innerHTML += `
+    <div class="box-card" id="box-${i}">
+      <div class="box-header">
+        <div class="box-name">
+          <div class="box-icon">${BOX_ICONS[i]}</div>
+          ${name}
+        </div>
+        <div class="box-status off">OFF</div>
+      </div>
+      <div class="last-taken">No data yet</div>
+      <div class="card-divider"></div>
+      <div class="field-row" style="grid-template-columns: 1fr;">
+        <div class="field">
+          <label>Medication</label>
+          <input type="text" id="med-${i}" class="med-val">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Alarms/Day</label>
+          <input type="number" min="0" max="12" value="0" id="freq-${i}" class="freq-val">
+        </div>
+        <div class="field">
+          <label>Interval (min)</label>
+          <input type="number" min="0" max="720" step="30" value="0" id="interval-${i}" class="interval-val">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>First Alarm</label>
+          <input type="time" value="07:00" id="start-${i}" class="start-val">
+        </div>
+        <div class="field">
+          <label>Pills/Dose</label>
+          <input type="number" min="1" max="20" value="1" id="dose-${i}" class="dose-val">
+        </div>
+      </div>
+      <div class="card-btns">
+        <button class="btn-save" onclick="saveBox(${i})">Save</button>
+        <button class="btn-off"  onclick="turnOffBox(${i})">Turn Off</button>
+      </div>
+    </div>`;
+  });
+</script>
+
+</body>
+</html>
