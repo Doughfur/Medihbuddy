@@ -182,10 +182,6 @@
     card.querySelector(".start-val").value    = secsToTime(d.startSecs);
     const medEl = card.querySelector(".med-val");
     if (medEl) medEl.value = d.med || "";
-    const medEl = card.querySelector(".med-val");
-    if (medEl) medEl.value = d.med || "";
-    const medEl = card.querySelector(".med-val");
-    if (medEl) medEl.value = d.med || "";
 
     const statusEl = card.querySelector(".box-status");
     if (d.freq && d.freq > 0) {
@@ -230,10 +226,6 @@
   }
 
   // ── Toast ─────────────────────────────────────────────────────
-  // Show nurse email in header
-  document.getElementById("nurse-label").textContent =
-    "Signed in: " + (sessionStorage.getItem("nurseEmail") || "Nurse");
-
   window.logout = function() {
     sessionStorage.clear();
     window.location.href = "login.html";
@@ -653,7 +645,7 @@
   </div>
 
   <div style="display:flex;align-items:center;gap:12px">
-    <div style="font-size:0.72rem; color:var(--muted); font-family:var(--mono);" id="nurse-label">Nurse Dashboard</div>
+    <div class="header-label" id="nurse-label">Nurse Dashboard</div>
     <button onclick="logout()" style="background:transparent;border:1px solid var(--border);color:var(--muted);
       font-family:var(--mono);font-size:0.65rem;padding:4px 10px;border-radius:6px;cursor:pointer;">Sign Out</button>
   </div>
@@ -695,6 +687,12 @@
 <div id="toast"></div>
 
 <script>
+  // Show nurse email — runs after DOM is ready
+  const nurseLabel = document.getElementById("nurse-label");
+  if (nurseLabel) {
+    nurseLabel.textContent = "Signed in: " + (sessionStorage.getItem("nurseEmail") || "Nurse");
+  }
+
   const BOX_ICONS = ["⚪","🔵","🟢","🟡","🔴","🟠","🟣"];
   const BOX_NAMES = ["Box A","Box B","Box C","Box D","Box E","Box F","Box G"];
   const grid = document.getElementById("box-grid");
